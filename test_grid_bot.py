@@ -315,6 +315,9 @@ class TestVolatilityAdaptiveGridBot(unittest.TestCase):
         order = GridOrder('sell', 605.0, 0.01)
         self.bot.orders = [order]
         
+        # Mock swap manager to return success
+        self.mock_swap_mgr.swap_bnb_to_usdt.return_value = True
+        
         # Mock ATR summary
         self.mock_atr_calc.get_atr_summary.return_value = {
             'current_price': 605.0,
@@ -327,11 +330,16 @@ class TestVolatilityAdaptiveGridBot(unittest.TestCase):
         self.assertEqual(self.bot.trades_executed, 1)
         self.assertLess(self.bot.position_bnb, 0)  # Sold BNB
         self.assertGreater(self.bot.position_usdt, 0)  # Received USDT
+        # Verify swap was called with correct parameters
+        self.mock_swap_mgr.swap_bnb_to_usdt.assert_called_once()
     
     def test_execute_buy_order(self):
         """Test executing a buy order"""
         order = GridOrder('buy', 595.0, 0.01)
         self.bot.orders = [order]
+        
+        # Mock swap manager to return success
+        self.mock_swap_mgr.swap_usdt_to_bnb.return_value = True
         
         # Mock ATR summary
         self.mock_atr_calc.get_atr_summary.return_value = {
@@ -345,6 +353,52 @@ class TestVolatilityAdaptiveGridBot(unittest.TestCase):
         self.assertEqual(self.bot.trades_executed, 1)
         self.assertGreater(self.bot.position_bnb, 0)  # Bought BNB
         self.assertLess(self.bot.position_usdt, 0)  # Spent USDT
+        # Verify swap was called with correct parameters
+        self.mock_swap_mgr.swap_usdt_to_bnb.assert_called_once()
+    
+    def test_execute_sell_order_swap_failure(self):
+        """Test executing a sell order when swap fails"""
+        order = GridOrder('sell', 605.0, 0.01)
+        self.bot.orders = [order]
+        
+        # Mock swap manager to return failure
+        self.mock_swap_mgr.swap_bnb_to_usdt.return_value = False
+        
+        # Mock ATR summary
+        self.mock_atr_calc.get_atr_summary.return_value = {
+            'current_price': 605.0,
+            'recommended_grid_interval': 5.0
+        }
+        
+        self.bot._execute_sell_order(order, 605.0)
+        
+        # Order should not be filled if swap fails
+        self.assertFalse(order.filled)
+        self.assertEqual(self.bot.trades_executed, 0)
+        self.assertEqual(self.bot.position_bnb, 0)  # No change in position
+        self.assertEqual(self.bot.position_usdt, 0)  # No change in position
+    
+    def test_execute_buy_order_swap_failure(self):
+        """Test executing a buy order when swap fails"""
+        order = GridOrder('buy', 595.0, 0.01)
+        self.bot.orders = [order]
+        
+        # Mock swap manager to return failure
+        self.mock_swap_mgr.swap_usdt_to_bnb.return_value = False
+        
+        # Mock ATR summary
+        self.mock_atr_calc.get_atr_summary.return_value = {
+            'current_price': 595.0,
+            'recommended_grid_interval': 5.0
+        }
+        
+        self.bot._execute_buy_order(order, 595.0)
+        
+        # Order should not be filled if swap fails
+        self.assertFalse(order.filled)
+        self.assertEqual(self.bot.trades_executed, 0)
+        self.assertEqual(self.bot.position_bnb, 0)  # No change in position
+        self.assertEqual(self.bot.position_usdt, 0)  # No change in position
 
 
 class TestIntegration(unittest.TestCase):
@@ -355,6 +409,10 @@ class TestIntegration(unittest.TestCase):
         mock_atr_calc = Mock(spec=ATRCalculator)
         mock_swap_mgr = Mock()
         mock_wallet_mgr = Mock()
+        
+        # Mock swap methods to return success
+        mock_swap_mgr.swap_bnb_to_usdt.return_value = True
+        mock_swap_mgr.swap_usdt_to_bnb.return_value = True
         
         bot = VolatilityAdaptiveGridBot(
             mock_atr_calc,

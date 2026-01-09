@@ -181,75 +181,93 @@ class VolatilityAdaptiveGridBot:
             elif order.order_type == 'buy' and current_price <= order.price:
                 self._execute_buy_order(order, current_price)
     
-    def _execute_sell_order(self, order: GridOrder, current_price: float) -> None:
+    def _execute_sell_order(self, order: GridOrder, current_price: float, slippage: float = 0.001) -> None:
         """
-        Execute a sell order (BNB -> USDT)
-        
-        Note: This is currently a simulation. In production, this would call
-        swap_manager.swap_bnb_to_usdt() to execute actual trades.
+        Execute a sell order (BNB -> USDT) using PancakeSwap Router
         
         Args:
             order: The sell order to execute
             current_price: Current market price
+            slippage: Slippage tolerance as decimal (default 0.001 = 0.1%)
         """
         print(f"\n💰 SELL ORDER TRIGGERED!")
         print(f"   Order: {order}")
         print(f"   Current Price: ${current_price:.2f}")
         
-        # Mark order as filled
-        order.filled = True
-        self.trades_executed += 1
+        # Calculate expected USDT
+        usdt_expected = order.amount * current_price
         
-        # SIMULATION: In production, replace this with actual swap execution
-        # Example: self.swap_manager.swap_bnb_to_usdt(order.amount, self.main_wallet_address)
-        usdt_received = order.amount * current_price
-        self.position_bnb -= order.amount
-        self.position_usdt += usdt_received
+        # Execute the swap using SwapManager
+        print(f"   🔄 Executing immediate swap: {order.amount:.6f} BNB -> ${usdt_expected:.2f} USDT")
+        success = self.swap_manager.swap_bnb_to_usdt(
+            order.amount,
+            self.main_wallet_address,
+            slippage=slippage
+        )
         
-        print(f"   ✅ Sold {order.amount:.6f} BNB for ~${usdt_received:.2f} USDT")
-        print(f"   ⚠️  NOTE: This is a SIMULATED trade. Enable production mode for real swaps.")
-        
-        # Update ATR if needed
-        if self.trades_executed % self.atr_update_frequency == 0:
-            self._update_atr()
-        
-        # Reposition grid
-        self._reposition_grid_after_sell(current_price)
+        if success:
+            # Mark order as filled
+            order.filled = True
+            self.trades_executed += 1
+            
+            # Update positions
+            self.position_bnb -= order.amount
+            self.position_usdt += usdt_expected
+            
+            print(f"   ✅ Sold {order.amount:.6f} BNB for ~${usdt_expected:.2f} USDT")
+            
+            # Update ATR if needed
+            if self.trades_executed % self.atr_update_frequency == 0:
+                self._update_atr()
+            
+            # Reposition grid
+            self._reposition_grid_after_sell(current_price)
+        else:
+            print(f"   ❌ Sell order failed - swap unsuccessful")
     
-    def _execute_buy_order(self, order: GridOrder, current_price: float) -> None:
+    def _execute_buy_order(self, order: GridOrder, current_price: float, slippage: float = 0.001) -> None:
         """
-        Execute a buy order (USDT -> BNB)
-        
-        Note: This is currently a simulation. In production, this would call
-        swap_manager.swap_usdt_to_bnb() to execute actual trades.
+        Execute a buy order (USDT -> BNB) using PancakeSwap Router
         
         Args:
             order: The buy order to execute
             current_price: Current market price
+            slippage: Slippage tolerance as decimal (default 0.001 = 0.1%)
         """
         print(f"\n💰 BUY ORDER TRIGGERED!")
         print(f"   Order: {order}")
         print(f"   Current Price: ${current_price:.2f}")
         
-        # Mark order as filled
-        order.filled = True
-        self.trades_executed += 1
+        # Calculate USDT amount needed
+        usdt_amount = order.amount * current_price
         
-        # SIMULATION: In production, replace this with actual swap execution
-        # Example: self.swap_manager.swap_usdt_to_bnb(usdt_amount, self.main_wallet_address)
-        usdt_spent = order.amount * current_price
-        self.position_bnb += order.amount
-        self.position_usdt -= usdt_spent
+        # Execute the swap using SwapManager
+        print(f"   🔄 Executing immediate swap: {usdt_amount:.2f} USDT -> {order.amount:.6f} BNB")
+        success = self.swap_manager.swap_usdt_to_bnb(
+            usdt_amount, 
+            self.main_wallet_address,
+            slippage=slippage
+        )
         
-        print(f"   ✅ Bought {order.amount:.6f} BNB for ~${usdt_spent:.2f} USDT")
-        print(f"   ⚠️  NOTE: This is a SIMULATED trade. Enable production mode for real swaps.")
-        
-        # Update ATR if needed
-        if self.trades_executed % self.atr_update_frequency == 0:
-            self._update_atr()
-        
-        # Reposition grid
-        self._reposition_grid_after_buy(current_price)
+        if success:
+            # Mark order as filled
+            order.filled = True
+            self.trades_executed += 1
+            
+            # Update positions
+            self.position_bnb += order.amount
+            self.position_usdt -= usdt_amount
+            
+            print(f"   ✅ Bought {order.amount:.6f} BNB for ~${usdt_amount:.2f} USDT")
+            
+            # Update ATR if needed
+            if self.trades_executed % self.atr_update_frequency == 0:
+                self._update_atr()
+            
+            # Reposition grid
+            self._reposition_grid_after_buy(current_price)
+        else:
+            print(f"   ❌ Buy order failed - swap unsuccessful")
     
     def _update_atr(self) -> None:
         """Update ATR and display current metrics"""

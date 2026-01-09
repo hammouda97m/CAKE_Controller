@@ -25,6 +25,9 @@ PREDICTION_CONTRACT = "0x18B2A687610328590Bc8F2e5fEdDe3b582A49cdA"
 USDT_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"
 PANCAKE_ROUTER = "0x10ED43C718714eb63d5aA57B78B54704E256024E"
 
+# Swap configuration
+SWAP_DEADLINE_SECONDS = 300  # 5 minutes deadline for swaps
+
 with open("prediction_abi.json", "r") as f:
     PREDICTION_ABI = json.load(f)
 
@@ -623,7 +626,32 @@ class SwapManager:
             print(f"⚠️ Error getting swap rate: {e}")
             return 0
 
-    def swap_usdt_to_bnb(self, usdt_amount, recipient_address):
+    def get_bnb_to_usdt_rate(self, bnb_amount):
+        """Get the expected USDT output for a given BNB amount"""
+        try:
+            bnb_amount_wei = int(bnb_amount * 1e18)
+            path = [WBNB, USDT_CONTRACT]
+            amounts = router_contract.functions.getAmountsOut(
+                bnb_amount_wei, path
+            ).call()
+            usdt_amount = amounts[1] / 1e18
+            return usdt_amount
+        except Exception as e:
+            print(f"⚠️ Error getting swap rate: {e}")
+            return 0
+
+    def swap_usdt_to_bnb(self, usdt_amount, recipient_address, slippage=0.001):
+        """
+        Swap USDT to BNB using PancakeSwap Router
+        
+        Args:
+            usdt_amount: Amount of USDT to swap
+            recipient_address: Address to receive BNB
+            slippage: Slippage tolerance as decimal (default 0.001 = 0.1%)
+        
+        Returns:
+            True if successful, False otherwise
+        """
         try:
             print(f"\n🔄 Starting USDT to BNB swap...")
             print(f"💰 Amount: {usdt_amount} USDT")
@@ -662,8 +690,8 @@ class SwapManager:
                 print("✅ Approval confirmed!")
 
             print("🔄 Executing swap...")
-            deadline = int(time.time()) + 300
-            min_bnb_out = int(expected_bnb * 0.999 * 1e18)
+            deadline = int(time.time()) + SWAP_DEADLINE_SECONDS
+            min_bnb_out = int(expected_bnb * (1 - slippage) * 1e18)
             nonce = web3.eth.get_transaction_count(main_address)
             swap_tx = router_contract.functions.swapExactTokensForETH(
                 usdt_amount_wei,
@@ -677,6 +705,67 @@ class SwapManager:
                 'gasPrice': web3.to_wei('0.1', 'gwei'),
                 'nonce': nonce
             })
+            signed_tx = web3.eth.account.sign_transaction(swap_tx, MAIN_PRIVATE_KEY)
+            tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
+            print(f"⏳ Waiting for swap... TX: {web3.to_hex(tx_hash)}")
+            receipt = web3.eth.wait_for_transaction_receipt(tx_hash)
+            if receipt.status == 1:
+                print("✅ Swap completed successfully!")
+                print(f"🔗 TX Hash: {web3.to_hex(tx_hash)}")
+                return True
+            else:
+                print("❌ Swap failed!")
+                return False
+        except Exception as e:
+            print(f"❌ Error during swap: {e}")
+            return False
+
+    def swap_bnb_to_usdt(self, bnb_amount, recipient_address, slippage=0.001):
+        """
+        Swap BNB to USDT using PancakeSwap Router
+        
+        Args:
+            bnb_amount: Amount of BNB to swap
+            recipient_address: Address to receive USDT
+            slippage: Slippage tolerance as decimal (default 0.001 = 0.1%)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            print(f"\n🔄 Starting BNB to USDT swap...")
+            print(f"💰 Amount: {bnb_amount} BNB")
+            print(f"📧 Recipient: {recipient_address}")
+
+            main_address = Web3.to_checksum_address(MAIN_WALLET_ADDRESS)
+            bnb_balance = web3.eth.get_balance(main_address) / 1e18
+
+            if bnb_balance < bnb_amount:
+                print(f"❌ Insufficient BNB balance. Have: {bnb_balance:.6f}, Need: {bnb_amount}")
+                return False
+
+            expected_usdt = self.get_bnb_to_usdt_rate(bnb_amount)
+            print(f"📊 Expected USDT: ${expected_usdt:.2f}")
+
+            print("🔄 Executing swap...")
+            deadline = int(time.time()) + SWAP_DEADLINE_SECONDS
+            min_usdt_out = int(expected_usdt * (1 - slippage) * 1e18)
+            bnb_amount_wei = int(bnb_amount * 1e18)
+            nonce = web3.eth.get_transaction_count(main_address)
+            
+            swap_tx = router_contract.functions.swapExactETHForTokens(
+                min_usdt_out,
+                [WBNB, USDT_CONTRACT],
+                recipient_address,
+                deadline
+            ).build_transaction({
+                'from': main_address,
+                'value': bnb_amount_wei,
+                'gas': 300000,
+                'gasPrice': web3.to_wei('0.1', 'gwei'),
+                'nonce': nonce
+            })
+            
             signed_tx = web3.eth.account.sign_transaction(swap_tx, MAIN_PRIVATE_KEY)
             tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
             print(f"⏳ Waiting for swap... TX: {web3.to_hex(tx_hash)}")
