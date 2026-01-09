@@ -239,6 +239,12 @@ def telegram_monitor():
 
 The Volatility-Adaptive Grid Bot is an intelligent trading system that automatically executes buy and sell orders based on market volatility. It dynamically adjusts its trading intervals using ATR (Average True Range) to adapt to changing market conditions.
 
+**⚠️ Current Status: SIMULATION MODE**
+- Grid Bot is currently in simulation mode for safe testing
+- Order fills are simulated and no actual swaps are executed
+- Allows testing of volatility adaptation logic without risk
+- Future updates will add production mode with real swap execution
+
 #### **Key Features:**
 
 **Dynamic Grid Intervals:**
@@ -344,14 +350,21 @@ grid_bot = VolatilityAdaptiveGridBot(
     swap_manager,
     wallet_manager,
     MAIN_WALLET_ADDRESS,
-    base_interval=5.0  # Adjust base interval in dollars
+    base_interval=5.0,        # Adjust base interval in dollars
+    order_amount_bnb=0.01     # Configure order size in BNB
 )
 ```
 
-Additional parameters in `atr_calculator.py`:
+**Configurable Parameters:**
+
+In `VolatilityAdaptiveGridBot` constructor:
+- `base_interval`: Base grid interval in dollars (default: $5)
+- `order_amount_bnb`: BNB amount per order (default: 0.01 BNB)
+
+In `atr_calculator.py`:
 - `atr_period`: Number of periods for ATR calculation (default: 14)
 
-Additional parameters in `grid_bot.py`:
+In `grid_bot.py` instance variables:
 - `update_interval`: Order check frequency in seconds (default: 10)
 - `atr_update_frequency`: Trades between ATR updates (default: 5)
 

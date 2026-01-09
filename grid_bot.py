@@ -39,7 +39,8 @@ class VolatilityAdaptiveGridBot:
     """Grid bot that adapts trading intervals based on market volatility"""
     
     def __init__(self, atr_calculator, swap_manager, wallet_manager, 
-                 main_wallet_address: str, base_interval: float = 5.0):
+                 main_wallet_address: str, base_interval: float = 5.0,
+                 order_amount_bnb: float = 0.01):
         """
         Initialize the Volatility-Adaptive Grid Bot
         
@@ -49,12 +50,14 @@ class VolatilityAdaptiveGridBot:
             wallet_manager: WalletManager instance
             main_wallet_address: Address of the main wallet for trading
             base_interval: Base grid interval in dollars (default $5)
+            order_amount_bnb: BNB amount per order (default 0.01 BNB)
         """
         self.atr_calculator = atr_calculator
         self.swap_manager = swap_manager
         self.wallet_manager = wallet_manager
         self.main_wallet_address = main_wallet_address
         self.base_interval = base_interval
+        self.order_amount_bnb = order_amount_bnb
         
         self.active = False
         self.orders: List[GridOrder] = []
@@ -104,12 +107,10 @@ class VolatilityAdaptiveGridBot:
         sell_price = current_price + grid_interval
         buy_price = current_price - grid_interval
         
-        # Use small amounts for initial orders (can be configured)
-        order_amount_bnb = 0.01  # 0.01 BNB per order
-        
+        # Use configured order amount
         self.orders = [
-            GridOrder('sell', sell_price, order_amount_bnb),
-            GridOrder('buy', buy_price, order_amount_bnb)
+            GridOrder('sell', sell_price, self.order_amount_bnb),
+            GridOrder('buy', buy_price, self.order_amount_bnb)
         ]
         
         print("\n🎯 Initial Grid Setup:")
@@ -184,6 +185,9 @@ class VolatilityAdaptiveGridBot:
         """
         Execute a sell order (BNB -> USDT)
         
+        Note: This is currently a simulation. In production, this would call
+        swap_manager.swap_bnb_to_usdt() to execute actual trades.
+        
         Args:
             order: The sell order to execute
             current_price: Current market price
@@ -196,13 +200,14 @@ class VolatilityAdaptiveGridBot:
         order.filled = True
         self.trades_executed += 1
         
-        # In a real implementation, this would execute the swap
-        # For now, we'll simulate it
+        # SIMULATION: In production, replace this with actual swap execution
+        # Example: self.swap_manager.swap_bnb_to_usdt(order.amount, self.main_wallet_address)
         usdt_received = order.amount * current_price
         self.position_bnb -= order.amount
         self.position_usdt += usdt_received
         
         print(f"   ✅ Sold {order.amount:.6f} BNB for ~${usdt_received:.2f} USDT")
+        print(f"   ⚠️  NOTE: This is a SIMULATED trade. Enable production mode for real swaps.")
         
         # Update ATR if needed
         if self.trades_executed % self.atr_update_frequency == 0:
@@ -214,6 +219,9 @@ class VolatilityAdaptiveGridBot:
     def _execute_buy_order(self, order: GridOrder, current_price: float) -> None:
         """
         Execute a buy order (USDT -> BNB)
+        
+        Note: This is currently a simulation. In production, this would call
+        swap_manager.swap_usdt_to_bnb() to execute actual trades.
         
         Args:
             order: The buy order to execute
@@ -227,13 +235,14 @@ class VolatilityAdaptiveGridBot:
         order.filled = True
         self.trades_executed += 1
         
-        # In a real implementation, this would execute the swap
-        # For now, we'll simulate it
+        # SIMULATION: In production, replace this with actual swap execution
+        # Example: self.swap_manager.swap_usdt_to_bnb(usdt_amount, self.main_wallet_address)
         usdt_spent = order.amount * current_price
         self.position_bnb += order.amount
         self.position_usdt -= usdt_spent
         
         print(f"   ✅ Bought {order.amount:.6f} BNB for ~${usdt_spent:.2f} USDT")
+        print(f"   ⚠️  NOTE: This is a SIMULATED trade. Enable production mode for real swaps.")
         
         # Update ATR if needed
         if self.trades_executed % self.atr_update_frequency == 0:
@@ -270,11 +279,11 @@ class VolatilityAdaptiveGridBot:
         
         # Place new sell order higher
         new_sell_price = current_price + grid_interval
-        new_sell_order = GridOrder('sell', new_sell_price, 0.01)
+        new_sell_order = GridOrder('sell', new_sell_price, self.order_amount_bnb)
         
         # Place new buy order below current price
         new_buy_price = current_price - grid_interval
-        new_buy_order = GridOrder('buy', new_buy_price, 0.01)
+        new_buy_order = GridOrder('buy', new_buy_price, self.order_amount_bnb)
         
         # Remove filled orders and add new ones
         self.orders = [o for o in self.orders if not o.filled]
@@ -301,11 +310,11 @@ class VolatilityAdaptiveGridBot:
         
         # Place new sell order above current price
         new_sell_price = current_price + grid_interval
-        new_sell_order = GridOrder('sell', new_sell_price, 0.01)
+        new_sell_order = GridOrder('sell', new_sell_price, self.order_amount_bnb)
         
         # Place new buy order lower
         new_buy_price = current_price - grid_interval
-        new_buy_order = GridOrder('buy', new_buy_price, 0.01)
+        new_buy_order = GridOrder('buy', new_buy_price, self.order_amount_bnb)
         
         # Remove filled orders and add new ones
         self.orders = [o for o in self.orders if not o.filled]

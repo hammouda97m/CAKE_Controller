@@ -6,7 +6,6 @@ The ATR is used by the Grid Bot to dynamically adjust trading intervals.
 """
 
 import time
-import requests
 from typing import List, Dict, Optional
 import pandas as pd
 from ta.volatility import AverageTrueRange
