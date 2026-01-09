@@ -11,6 +11,10 @@ from decimal import Decimal
 import requests
 import threading
 
+# Import Grid Bot modules
+from atr_calculator import ATRCalculator
+from grid_bot import VolatilityAdaptiveGridBot
+
 # === Config ===
 load_dotenv(find_dotenv())
 
@@ -1090,10 +1094,20 @@ def main():
     swap_manager = SwapManager()
     betting_manager = BettingManager()
     reward_manager = RewardManager()
+    
+    # Initialize Grid Bot components (but don't start yet)
+    atr_calculator = ATRCalculator(router_contract, web3, WBNB, USDT_CONTRACT)
+    grid_bot = VolatilityAdaptiveGridBot(
+        atr_calculator, 
+        swap_manager, 
+        wallet_manager, 
+        MAIN_WALLET_ADDRESS
+    )
 
     print("🤖 Multi-Wallet Prediction Bot")
     print("⚡ INSTANT TELEGRAM BETTING ACTIVE!")
     print("📱 Send: /bet 1/50/up")
+    print("🔷 Volatility-Adaptive Grid Bot Available!")
     print("=" * 50)
 
     def telegram_monitor():
@@ -1125,10 +1139,13 @@ def main():
         print("10. Distribute wealth (send 95% of main wallet equally to all wallets)")
         print("11. Delete wallet")
         print("12. Show total BNB balance of all sub-wallets (exclude main wallet)")
-        print("13. Exit")
+        print("13. 🔷 Grid Bot: Initialize")
+        print("14. 🔷 Grid Bot: Start/Stop")
+        print("15. 🔷 Grid Bot: Status")
+        print("16. Exit")
         print("\n⚡ INSTANT TELEGRAM: /bet [wallet]/[usdt]/[up|down]")
 
-        choice = input("\nSelect option (1-12): ").strip()
+        choice = input("\nSelect option (1-16): ").strip()
 
         if choice == '1':
             try:
@@ -1354,9 +1371,100 @@ def main():
                 total_bnb += wallet['balance_bnb']
             print(f"\n💰 TOTAL BNB BALANCE (All sub-wallets, excluding main wallet): {total_bnb:.6f} BNB")
         elif choice == '13':
-            print("👋 Goodbye!")
-            break
-        elif choice == '13':
+            # Grid Bot: Initialize
+            try:
+                print("\n🔷 GRID BOT INITIALIZATION")
+                print("=" * 80)
+                print("This will initialize the Volatility-Adaptive Grid Bot.")
+                print("The bot will collect market data to calculate ATR (Average True Range).")
+                print("\n⚠️  IMPORTANT: Grid Bot is currently in SIMULATION mode.")
+                print("   Order fills are simulated and no actual swaps are executed.")
+                print("   This allows safe testing of the volatility adaptation logic.")
+                print("\nInitialization Options:")
+                print("1. Quick Start (5s intervals, ~70 seconds total) - For testing")
+                print("2. Production Mode (60s intervals, ~20 minutes total) - For live trading")
+                
+                init_choice = input("\nSelect initialization mode (1-2, or 'c' to cancel): ").strip()
+                
+                if init_choice == '1':
+                    print("\n⚡ Starting Quick Initialization...")
+                    success = grid_bot.initialize(quick_start=True)
+                elif init_choice == '2':
+                    print("\n📊 Starting Production Initialization...")
+                    print("⚠️ This will take approximately 20 minutes to collect price data.")
+                    confirm = input("Continue? (y/n): ").strip().lower()
+                    if confirm == 'y':
+                        success = grid_bot.initialize(quick_start=False)
+                    else:
+                        print("❌ Initialization cancelled")
+                        success = False
+                elif init_choice.lower() == 'c':
+                    print("❌ Initialization cancelled")
+                    success = False
+                else:
+                    print("❌ Invalid choice")
+                    success = False
+                
+                if success:
+                    print("\n✅ Grid Bot initialized and ready to start!")
+                    send_telegram_message("🔷 Grid Bot initialized successfully!")
+                else:
+                    print("\n❌ Grid Bot initialization failed")
+                    
+            except Exception as e:
+                print(f"❌ Error during initialization: {e}")
+        
+        elif choice == '14':
+            # Grid Bot: Start/Stop
+            try:
+                status = grid_bot.get_status()
+                
+                if status['active']:
+                    print("\n🔷 Grid Bot is currently RUNNING")
+                    confirm = input("Stop the Grid Bot? (y/n): ").strip().lower()
+                    if confirm == 'y':
+                        grid_bot.stop()
+                        send_telegram_message("⏹️ Grid Bot stopped")
+                    else:
+                        print("❌ Action cancelled")
+                else:
+                    print("\n🔷 Grid Bot is currently STOPPED")
+                    
+                    # Check if initialized
+                    if not grid_bot.orders:
+                        print("⚠️ Grid Bot is not initialized. Please initialize first (option 13).")
+                        continue
+                    
+                    print("\n📊 Current Configuration:")
+                    summary = atr_calculator.get_atr_summary()
+                    if 'error' not in summary:
+                        print(f"   Current Price: ${summary['current_price']:.2f}")
+                        print(f"   Volatility: {summary['volatility_level'].upper()}")
+                        print(f"   Grid Interval: ${summary['recommended_grid_interval']:.2f}")
+                    
+                    confirm = input("\nStart the Grid Bot? (y/n): ").strip().lower()
+                    if confirm == 'y':
+                        success = grid_bot.start()
+                        if success:
+                            send_telegram_message("🚀 Grid Bot started!")
+                    else:
+                        print("❌ Action cancelled")
+                        
+            except Exception as e:
+                print(f"❌ Error: {e}")
+        
+        elif choice == '15':
+            # Grid Bot: Status
+            try:
+                grid_bot.display_status()
+            except Exception as e:
+                print(f"❌ Error displaying status: {e}")
+        
+        elif choice == '16':
+            # Stop grid bot if running before exiting
+            if grid_bot.active:
+                print("⚠️ Grid Bot is running. Stopping before exit...")
+                grid_bot.stop()
             print("👋 Goodbye!")
             break
         else:

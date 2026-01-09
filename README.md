@@ -1,9 +1,91 @@
-# Multi-Wallet Prediction Bot
+# Multi-Wallet Prediction Bot with Volatility-Adaptive Grid Trading
 
-This is a **comprehensive wallet management and betting system** for PancakeSwap predictions with instant Telegram betting capabilities.
+This is a **comprehensive wallet management and betting system** for PancakeSwap predictions with instant Telegram betting capabilities and an advanced **Volatility-Adaptive Grid Bot** for automated trading.
 
 ## Core Purpose
-Manage multiple betting wallets, swap between BNB/USDT, place bets, claim rewards, and execute instant bets via Telegram commands.
+Manage multiple betting wallets, swap between BNB/USDT, place bets, claim rewards, execute instant bets via Telegram commands, and automate trading with the Volatility-Adaptive Grid Bot that dynamically adjusts to market conditions.
+
+## Installation & Setup
+
+### Prerequisites
+- Python 3.8 or higher
+- BSC (Binance Smart Chain) RPC endpoint
+- Main wallet with private key (for swaps and distributions)
+- (Optional) Telegram Bot Token for notifications
+
+### Installation Steps
+
+1. **Clone the repository:**
+```bash
+git clone https://github.com/hammouda97m/CAKE_Controller.git
+cd CAKE_Controller
+```
+
+2. **Install required dependencies:**
+```bash
+pip3 install -r requirements.txt
+```
+
+Required packages:
+- `web3>=6.0.0` - BSC blockchain interaction
+- `python-dotenv>=0.19.0` - Environment variable management
+- `eth-account>=0.8.0` - Ethereum account utilities
+- `requests>=2.28.0` - HTTP requests for APIs
+- `ta>=0.11.0` - Technical analysis library for ATR
+- `pandas>=1.5.0` - Data manipulation for price analysis
+
+3. **Configure environment variables:**
+
+Create a `.env` file in the project root:
+```bash
+MAIN_PRIVATE_KEY=your_private_key_here
+MAIN_WALLET_ADDRESS=your_wallet_address_here
+TELEGRAM_TOKEN=your_telegram_bot_token  # Optional
+TELEGRAM_CHAT_ID=your_chat_id  # Optional
+```
+
+4. **Run the bot:**
+```bash
+python3 manager_Version4.py
+```
+
+### Quick Start with Grid Bot
+
+**For Testing (Quick Mode):**
+```
+1. Run: python3 manager_Version4.py
+2. Select: 13 (Grid Bot: Initialize)
+3. Choose: 1 (Quick Start - 5s intervals, ~70 seconds)
+4. Wait for initialization to complete
+5. Select: 14 (Grid Bot: Start/Stop)
+6. Confirm: y (Start)
+7. Select: 15 (Grid Bot: Status) - Monitor performance
+```
+
+**For Live Trading (Production Mode):**
+```
+1. Run: python3 manager_Version4.py
+2. Select: 13 (Grid Bot: Initialize)
+3. Choose: 2 (Production Mode - 60s intervals, ~20 minutes)
+4. Wait for initialization to complete (~20 minutes)
+5. Select: 14 (Grid Bot: Start/Stop)
+6. Confirm: y (Start)
+7. Select: 15 (Grid Bot: Status) - Monitor performance
+```
+
+### Running Tests
+
+To verify the Grid Bot implementation:
+```bash
+python3 test_grid_bot.py
+```
+
+All 27 tests should pass, confirming:
+- ATR calculation accuracy
+- Volatility level detection
+- Grid interval adjustments
+- Order placement and execution
+- Grid repositioning logic
 
 ## Key Components
 
@@ -149,8 +231,152 @@ def telegram_monitor():
 3. **Reward Claims**: When rewards are collected
 4. **Wallet Operations**: Drain/empty notifications
 5. **Distribution Complete**: When wealth is distributed
+6. **Grid Bot Updates**: When grid bot is started/stopped
 
-### 8. **Complete Betting Workflow**
+### 8. **🔷 Volatility-Adaptive Grid Bot** (NEW!)
+
+**Revolutionary Automated Trading System:**
+
+The Volatility-Adaptive Grid Bot is an intelligent trading system that automatically executes buy and sell orders based on market volatility. It dynamically adjusts its trading intervals using ATR (Average True Range) to adapt to changing market conditions.
+
+**⚠️ Current Status: SIMULATION MODE**
+- Grid Bot is currently in simulation mode for safe testing
+- Order fills are simulated and no actual swaps are executed
+- Allows testing of volatility adaptation logic without risk
+- Future updates will add production mode with real swap execution
+
+#### **Key Features:**
+
+**Dynamic Grid Intervals:**
+- **Low Volatility** (ATR < 1%): Tighter intervals (60% of base = $3)
+- **Medium Volatility** (ATR 1-2.5%): Normal intervals (100% of base = $5)
+- **High Volatility** (ATR > 2.5%): Wider intervals (160% of base = $8)
+
+**Automatic Order Placement:**
+```
+Initial Setup:
+- Sell Order: Current Price + Grid Interval
+- Buy Order: Current Price - Grid Interval
+
+On Sell Fill (Price Increase):
+- New Sell Order: New Price + Updated Interval
+- New Buy Order: New Price - Updated Interval
+
+On Buy Fill (Price Decrease):
+- New Sell Order: New Price + Updated Interval
+- New Buy Order: New Price - Updated Interval
+```
+
+**ATR-Based Volatility Measurement:**
+- Continuously monitors market price movements
+- Calculates ATR using 14-period moving average
+- Updates grid intervals based on real-time volatility
+- Recalculates ATR after every 5 trades
+
+#### **How It Works:**
+
+1. **Initialization Phase:**
+   - Collects historical price data (14+ samples)
+   - Calculates initial ATR
+   - Sets up initial buy/sell orders
+   - Determines optimal grid interval
+
+2. **Trading Phase:**
+   - Monitors price movements every 10 seconds
+   - Triggers orders when price crosses thresholds
+   - Automatically repositions grid after fills
+   - Updates ATR periodically for dynamic adjustment
+
+3. **Risk Management:**
+   - Wider intervals during high volatility prevent whipsaw losses
+   - Tighter intervals during calm markets maximize profit opportunities
+   - Configurable base interval (default $5)
+   - Automatic position tracking (BNB and USDT)
+
+#### **Usage:**
+
+**Quick Start (Testing):**
+```
+Menu → 13. Grid Bot: Initialize → Quick Start (5s intervals, ~70 seconds)
+Menu → 14. Grid Bot: Start/Stop → Start
+Menu → 15. Grid Bot: Status → View current status
+```
+
+**Production Mode (Live Trading):**
+```
+Menu → 13. Grid Bot: Initialize → Production Mode (60s intervals, ~20 minutes)
+Menu → 14. Grid Bot: Start/Stop → Start
+Menu → 15. Grid Bot: Status → Monitor performance
+```
+
+#### **Status Display:**
+
+The Grid Bot Status (Menu Option 15) shows:
+- **Bot State**: Active or Stopped
+- **Total Trades**: Number of executed trades
+- **Position**: Current BNB and USDT positions
+- **Active Orders**: Current buy/sell orders
+- **Market Conditions**: Current price, ATR, volatility level, grid interval
+
+**Example Output:**
+```
+📊 GRID BOT STATUS
+================================================================================
+Status: 🟢 ACTIVE
+Total Trades: 8
+Position BNB: 0.042000
+Position USDT: $-251.20
+Active Orders: 2/10
+
+📈 Market Conditions:
+   Price: $602.50
+   ATR: $12.30 (2.04%)
+   Volatility: MEDIUM
+   Grid Interval: $5.00
+
+🎯 Active Orders:
+   GridOrder(SELL, $607.50, 0.010000 BNB, OPEN)
+   GridOrder(BUY, $597.50, 0.010000 BNB, OPEN)
+================================================================================
+```
+
+#### **Configuration:**
+
+The Grid Bot can be configured by modifying parameters in `manager_Version4.py`:
+
+```python
+grid_bot = VolatilityAdaptiveGridBot(
+    atr_calculator,
+    swap_manager,
+    wallet_manager,
+    MAIN_WALLET_ADDRESS,
+    base_interval=5.0,        # Adjust base interval in dollars
+    order_amount_bnb=0.01     # Configure order size in BNB
+)
+```
+
+**Configurable Parameters:**
+
+In `VolatilityAdaptiveGridBot` constructor:
+- `base_interval`: Base grid interval in dollars (default: $5)
+- `order_amount_bnb`: BNB amount per order (default: 0.01 BNB)
+
+In `atr_calculator.py`:
+- `atr_period`: Number of periods for ATR calculation (default: 14)
+
+In `grid_bot.py` instance variables:
+- `update_interval`: Order check frequency in seconds (default: 10)
+- `atr_update_frequency`: Trades between ATR updates (default: 5)
+
+#### **Safety Features:**
+
+- **Initialization Validation**: Ensures sufficient price data before starting
+- **Error Handling**: Graceful handling of network errors and price fetch failures
+- **Automatic Cleanup**: Removes filled orders from active tracking
+- **Status Monitoring**: Real-time visibility into bot performance
+- **Telegram Notifications**: Alerts for start/stop events
+
+### 9. **Complete Betting Workflow**
 
 **Standard Manual Flow:**
 ```
@@ -171,7 +397,7 @@ def telegram_monitor():
 3. Get status updates via Telegram
 ```
 
-### 9. **Main Menu Options**
+### 10. **Main Menu Options**
 
 | Option | Function |
 |--------|----------|
@@ -187,9 +413,12 @@ def telegram_monitor():
 | 10 | Distribute wealth to all wallets |
 | 11 | Delete wallet |
 | 12 | Show total BNB across sub-wallets |
-| 13 | Exit |
+| 13 | 🔷 Grid Bot: Initialize |
+| 14 | 🔷 Grid Bot: Start/Stop |
+| 15 | 🔷 Grid Bot: Status |
+| 16 | Exit |
 
-### 10. **Smart Contract Interactions**
+### 11. **Smart Contract Interactions**
 
 **Prediction Contract:**
 - `currentEpoch()` - Get current round number
@@ -211,26 +440,29 @@ def telegram_monitor():
 - `swapExactTokensForETH()` - USDT → BNB
 - `swapExactETHForTokens()` - BNB → USDT
 
-### 11. **Safety & Error Handling**
+### 12. **Safety & Error Handling**
 
 **Pre-Transaction Checks:**
 - Balance verification before swaps
 - Round lock status before betting
 - Gas fee reservations
 - Approval status checks
+- Grid bot initialization validation
 
 **Confirmation Prompts:**
 - Swap confirmations
 - Bet confirmations
 - Wallet deletion warnings
 - Distribution confirmations
+- Grid bot start/stop confirmations
 
 **Error Recovery:**
 - Failed transaction reporting
 - Automatic retry mechanisms (where applicable)
 - Telegram error notifications
+- Grid bot graceful error handling
 
-### 12. **Data Persistence**
+### 13. **Data Persistence**
 
 **Stored Data:**
 - `created_wallets.json` - All wallet info (addresses, keys, names, timestamps)
