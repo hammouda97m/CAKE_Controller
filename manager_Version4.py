@@ -25,6 +25,9 @@ PREDICTION_CONTRACT = "0x18B2A687610328590Bc8F2e5fEdDe3b582A49cdA"
 USDT_CONTRACT = "0x55d398326f99059fF775485246999027B3197955"
 PANCAKE_ROUTER = "0x10ED43C718714eb63d5aA57B78B54704E256024E"
 
+# Swap configuration
+SWAP_DEADLINE_SECONDS = 300  # 5 minutes deadline for swaps
+
 with open("prediction_abi.json", "r") as f:
     PREDICTION_ABI = json.load(f)
 
@@ -644,7 +647,7 @@ class SwapManager:
         Args:
             usdt_amount: Amount of USDT to swap
             recipient_address: Address to receive BNB
-            slippage: Slippage tolerance (default 0.1%)
+            slippage: Slippage tolerance as decimal (default 0.001 = 0.1%)
         
         Returns:
             True if successful, False otherwise
@@ -687,7 +690,7 @@ class SwapManager:
                 print("✅ Approval confirmed!")
 
             print("🔄 Executing swap...")
-            deadline = int(time.time()) + 300
+            deadline = int(time.time()) + SWAP_DEADLINE_SECONDS
             min_bnb_out = int(expected_bnb * (1 - slippage) * 1e18)
             nonce = web3.eth.get_transaction_count(main_address)
             swap_tx = router_contract.functions.swapExactTokensForETH(
@@ -724,7 +727,7 @@ class SwapManager:
         Args:
             bnb_amount: Amount of BNB to swap
             recipient_address: Address to receive USDT
-            slippage: Slippage tolerance (default 0.1%)
+            slippage: Slippage tolerance as decimal (default 0.001 = 0.1%)
         
         Returns:
             True if successful, False otherwise
@@ -745,7 +748,7 @@ class SwapManager:
             print(f"📊 Expected USDT: ${expected_usdt:.2f}")
 
             print("🔄 Executing swap...")
-            deadline = int(time.time()) + 300
+            deadline = int(time.time()) + SWAP_DEADLINE_SECONDS
             min_usdt_out = int(expected_usdt * (1 - slippage) * 1e18)
             bnb_amount_wei = int(bnb_amount * 1e18)
             nonce = web3.eth.get_transaction_count(main_address)

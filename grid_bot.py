@@ -188,7 +188,7 @@ class VolatilityAdaptiveGridBot:
         Args:
             order: The sell order to execute
             current_price: Current market price
-            slippage: Slippage tolerance (default 0.1%)
+            slippage: Slippage tolerance as decimal (default 0.001 = 0.1%)
         """
         print(f"\n💰 SELL ORDER TRIGGERED!")
         print(f"   Order: {order}")
@@ -232,7 +232,7 @@ class VolatilityAdaptiveGridBot:
         Args:
             order: The buy order to execute
             current_price: Current market price
-            slippage: Slippage tolerance (default 0.1%)
+            slippage: Slippage tolerance as decimal (default 0.001 = 0.1%)
         """
         print(f"\n💰 BUY ORDER TRIGGERED!")
         print(f"   Order: {order}")
